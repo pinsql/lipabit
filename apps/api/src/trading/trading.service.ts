@@ -24,10 +24,12 @@ const MAX_KES_TIER1 = 30000;
 const MAX_KES_TIER2 = 500000;
 const MAX_KES_TIER3 = 5000000;
 const SATS_PER_BTC = 100000000;
+const RATE_CACHE_TTL_MS = 30_000; // 30s — don't hammer Binance on every public request
 
 @Injectable()
 export class TradingService {
   private readonly logger = new Logger(TradingService.name);
+  private rateCache: { data: any; expiresAt: number } | null = null;
 
   constructor(
     private prisma: PrismaService,
@@ -37,6 +39,9 @@ export class TradingService {
   ) {}
 
   async getExchangeRate() {
+    if (this.rateCache && Date.now() < this.rateCache.expiresAt) {
+      return this.rateCache.data;
+    }
     try {
       const [binanceRes, fxRes] = await Promise.all([
         firstValueFrom(
@@ -64,7 +69,9 @@ export class TradingService {
         },
       });
 
-      return { btcUsd, usdKes, btcKes, buyRateKes, sellRateKes, updatedAt: new Date() };
+      const result = { btcUsd, usdKes, btcKes, buyRateKes, sellRateKes, updatedAt: new Date() };
+      this.rateCache = { data: result, expiresAt: Date.now() + RATE_CACHE_TTL_MS };
+      return result;
     } catch (err) {
       this.logger.error('Failed to fetch exchange rate', err.message);
       const last = await this.prisma.exchangeRate.findFirst({ orderBy: { createdAt: 'desc' } });
@@ -185,35 +192,61 @@ export class TradingService {
 
     if (grossKes < MIN_KES) throw new BadRequestException(`Minimum transaction is KES ${MIN_KES}`);
 
-    const transaction = await this.prisma.$transaction(async (tx) => {
-      await tx.bitcoinWallet.update({
-        where: { userId },
-        data: { balanceSats: { decrement: BigInt(amountSats) } },
-      });
-
-      return tx.transaction.create({
-        data: {
-          userId,
-          type: 'SELL_BTC',
-          status: 'PROCESSING',
-          amountKes: new Decimal(grossKes.toFixed(2)),
-          amountSats: BigInt(amountSats),
-          btcPriceKes: new Decimal(rate.sellRateKes.toFixed(2)),
-          feeKes: new Decimal(feeKes.toFixed(2)),
-          feePercent: new Decimal(feePercent),
-          spreadKes: new Decimal((grossKes * SPREAD).toFixed(2)),
-          netAmountKes: new Decimal(netKes.toFixed(2)),
-          reference,
-        },
-      });
+    // CRIT-4 fix: create transaction record first WITHOUT decrementing balance.
+    // Balance is only deducted after B2C payout is confirmed via callback.
+    // Use updateMany with a balance guard to prevent race conditions / negative balances.
+    const transaction = await this.prisma.transaction.create({
+      data: {
+        userId,
+        type: 'SELL_BTC',
+        status: 'PENDING',
+        amountKes: new Decimal(grossKes.toFixed(2)),
+        amountSats: BigInt(amountSats),
+        btcPriceKes: new Decimal(rate.sellRateKes.toFixed(2)),
+        feeKes: new Decimal(feeKes.toFixed(2)),
+        feePercent: new Decimal(feePercent),
+        spreadKes: new Decimal((grossKes * SPREAD).toFixed(2)),
+        netAmountKes: new Decimal(netKes.toFixed(2)),
+        reference,
+        metadata: { pendingAmountSats: amountSats, phone },
+      },
     });
 
-    const b2c = await this.mpesa.initiateB2C(
-      phone,
-      netKes,
-      transaction.id,
-      `LipaBit BTC sale ${reference}`,
-    );
+    let b2c: any;
+    try {
+      b2c = await this.mpesa.initiateB2C(
+        phone,
+        netKes,
+        transaction.id,
+        `LipaBit BTC sale ${reference}`,
+      );
+    } catch (err) {
+      // B2C failed — mark transaction failed, do NOT touch wallet
+      await this.prisma.transaction.update({
+        where: { id: transaction.id },
+        data: { status: 'FAILED', failureReason: err.message },
+      });
+      throw err;
+    }
+
+    // Lock (not deduct) the sats — deduction happens in handleB2CCallback on SUCCESS
+    const locked = await this.prisma.bitcoinWallet.updateMany({
+      where: { userId, balanceSats: { gte: BigInt(amountSats) } },
+      data: { balanceSats: { decrement: BigInt(amountSats) } },
+    });
+
+    if (locked.count === 0) {
+      await this.prisma.transaction.update({
+        where: { id: transaction.id },
+        data: { status: 'FAILED', failureReason: 'Insufficient balance at lock time' },
+      });
+      throw new BadRequestException('Insufficient Bitcoin balance');
+    }
+
+    await this.prisma.transaction.update({
+      where: { id: transaction.id },
+      data: { status: 'PROCESSING' },
+    });
 
     return {
       transactionId: transaction.id,

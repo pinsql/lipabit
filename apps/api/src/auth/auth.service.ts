@@ -8,6 +8,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -125,9 +126,9 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    const tokenHash = await bcrypt.hash(token, 1);
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const stored = await this.prisma.refreshToken.findFirst({
-      where: { userId: payload.sub, revokedAt: null, expiresAt: { gt: new Date() } },
+      where: { userId: payload.sub, tokenHash, revokedAt: null, expiresAt: { gt: new Date() } },
     });
 
     if (!stored) throw new UnauthorizedException('Refresh token expired or revoked');
@@ -243,12 +244,14 @@ export class AuthService {
     const refreshExpiresIn = this.config.get('auth.refreshExpiresIn') || '7d';
     const days = parseInt(refreshExpiresIn) || 7;
 
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+
     await this.prisma.refreshToken.create({
       data: {
         userId,
-        tokenHash: refreshToken.slice(-32),
+        tokenHash,
         ipAddress,
-        deviceInfo: userAgent?.slice(0, 255),
+        deviceInfo: userAgent?.replace(/[^\x20-\x7E]/g, '').slice(0, 255),
         expiresAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
       },
     });

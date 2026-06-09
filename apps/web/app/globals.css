@@ -1,44 +1,605 @@
+/* ============================================================
+   LipaBit — Global Stylesheet
+   Design System: Bitcoin/M-Pesa Exchange, Kenya
+   Dark-first premium fintech aesthetic
+   ============================================================ */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ============================================================
+   CSS Custom Properties — Dark Theme (default)
+   ============================================================ */
+
+:root,
+.dark {
+  /* --- Backgrounds --- */
+  --bg-base:           #0B0E11;
+  --bg-elevated:       #131720;
+  --bg-card:           #1C1F26;
+  --bg-card-secondary: #22262F;
+  --bg-hover:          #363B44;
+  --bg-overlay:        rgba(11, 14, 17, 0.72);
+
+  /* --- Borders --- */
+  --border-subtle:     #2B2F36;
+  --border-strong:     #363B44;
+  --border-focus:      #F7931A;
+
+  /* --- Text --- */
+  --text-primary:      #EAECEF;
+  --text-secondary:    #848E9C;
+  --text-muted:        #5A6275;
+  --text-inverse:      #0B0E11;
+  --text-on-brand:     #0B0E11;
+
+  /* --- Brand / Bitcoin Orange --- */
+  --brand:             #F7931A;
+  --brand-hover:       #FF9A24;
+  --brand-active:      #E07800;
+  --brand-subtle:      rgba(247, 147, 26, 0.12);
+  --brand-glow:        rgba(247, 147, 26, 0.30);
+
+  /* --- Semantic: Success (buy / positive P&L) --- */
+  --success:           #0ECB81;
+  --success-subtle:    rgba(14, 203, 129, 0.12);
+  --success-text:      #33E0A0;
+
+  /* --- Semantic: Danger (sell / negative P&L) --- */
+  --danger:            #F6465D;
+  --danger-subtle:     rgba(246, 70, 93, 0.12);
+  --danger-text:       #F56070;
+
+  /* --- Semantic: Warning (pending / caution) --- */
+  --warning:           #F0B90B;
+  --warning-subtle:    rgba(240, 185, 11, 0.12);
+  --warning-text:      #FFD040;
+
+  /* --- Semantic: Info --- */
+  --info:              #1677FF;
+  --info-subtle:       rgba(22, 119, 255, 0.12);
+  --info-text:         #4D9EFF;
+
+  /* --- Chart / price direction --- */
+  --price-up:          #0ECB81;
+  --price-down:        #F6465D;
+  --price-neutral:     #848E9C;
+
+  /* --- Shadows --- */
+  --shadow-xs:         0 1px 2px rgba(0, 0, 0, 0.40);
+  --shadow-sm:         0 2px 4px rgba(0, 0, 0, 0.45);
+  --shadow-md:         0 4px 12px rgba(0, 0, 0, 0.50);
+  --shadow-lg:         0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-xl:         0 16px 40px rgba(0, 0, 0, 0.60);
+  --shadow-2xl:        0 24px 64px rgba(0, 0, 0, 0.65);
+  --shadow-card:       0 4px 12px rgba(0, 0, 0, 0.50), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --shadow-inset:      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  /* --- Glow effects --- */
+  --glow-brand-sm:     0 0 12px rgba(247, 147, 26, 0.40);
+  --glow-brand-md:     0 0 24px rgba(247, 147, 26, 0.35), 0 0 48px rgba(247, 147, 26, 0.15);
+  --glow-brand-lg:     0 0 40px rgba(247, 147, 26, 0.40), 0 0 80px rgba(247, 147, 26, 0.20);
+  --glow-brand-btn:    0 4px 20px rgba(247, 147, 26, 0.45);
+  --glow-success:      0 0 20px rgba(14, 203, 129, 0.35);
+  --glow-danger:       0 0 20px rgba(246, 70, 93, 0.35);
+  --glow-warning:      0 0 20px rgba(240, 185, 11, 0.35);
+  --glow-info:         0 0 20px rgba(22, 119, 255, 0.35);
+
+  /* --- Focus ring --- */
+  --focus-ring:        0 0 0 3px rgba(247, 147, 26, 0.50);
+  --focus-ring-danger: 0 0 0 3px rgba(246, 70, 93, 0.50);
+
+  /* --- Gradients --- */
+  --gradient-brand:          linear-gradient(135deg, #F7931A 0%, #FFB84D 100%);
+  --gradient-brand-button:   linear-gradient(135deg, #FF9A24 0%, #F7931A 50%, #E07800 100%);
+  --gradient-brand-subtle:   linear-gradient(135deg, rgba(247, 147, 26, 0.15) 0%, rgba(247, 147, 26, 0.05) 100%);
+  --gradient-card:           linear-gradient(145deg, #1C1F26 0%, #181B22 100%);
+  --gradient-card-hover:     linear-gradient(145deg, #22262F 0%, #1C1F26 100%);
+  --gradient-hero:           radial-gradient(ellipse 80% 60% at 50% -10%, rgba(247, 147, 26, 0.18) 0%, rgba(11, 14, 17, 0) 70%);
+  --gradient-nav:            linear-gradient(180deg, #131720 0%, rgba(19, 23, 32, 0.96) 100%);
+  --gradient-success:        linear-gradient(135deg, #0ECB81 0%, #0AAD6D 100%);
+  --gradient-danger:         linear-gradient(135deg, #F6465D 0%, #D93450 100%);
+  --gradient-warning:        linear-gradient(135deg, #F0B90B 0%, #CC9B09 100%);
+  --gradient-chart-up:       linear-gradient(180deg, rgba(14, 203, 129, 0.25) 0%, rgba(14, 203, 129, 0) 100%);
+  --gradient-chart-down:     linear-gradient(180deg, rgba(246, 70, 93, 0.25) 0%, rgba(246, 70, 93, 0) 100%);
+  --gradient-skeleton:       linear-gradient(90deg, #1C1F26 25%, #22262F 50%, #1C1F26 75%);
+
+  /* --- Border radius --- */
+  --radius-xs:     2px;
+  --radius-sm:     4px;
+  --radius-md:     6px;
+  --radius:        8px;
+  --radius-lg:     10px;
+  --radius-xl:     12px;
+  --radius-2xl:    16px;
+  --radius-3xl:    20px;
+  --radius-4xl:    24px;
+  --radius-pill:   9999px;
+
+  /* --- Component-specific radius aliases --- */
+  --radius-button:  8px;
+  --radius-card:    12px;
+  --radius-input:   8px;
+  --radius-badge:   9999px;
+  --radius-modal:   16px;
+  --radius-tooltip: 6px;
+
+  /* --- Spacing (4px grid) --- */
+  --space-px:  1px;
+  --space-0-5: 2px;
+  --space-1:   4px;
+  --space-1-5: 6px;
+  --space-2:   8px;
+  --space-2-5: 10px;
+  --space-3:   12px;
+  --space-3-5: 14px;
+  --space-4:   16px;
+  --space-5:   20px;
+  --space-6:   24px;
+  --space-7:   28px;
+  --space-8:   32px;
+  --space-9:   36px;
+  --space-10:  40px;
+  --space-11:  44px;
+  --space-12:  48px;
+  --space-14:  56px;
+  --space-16:  64px;
+  --space-18:  72px;
+  --space-20:  80px;
+  --space-24:  96px;
+  --space-28:  112px;
+  --space-32:  128px;
+
+  /* --- Typography --- */
+  --font-sans:     'Inter', 'SF Pro Display', system-ui, -apple-system, sans-serif;
+  --font-mono:     'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+
+  --text-2xs:  0.625rem;
+  --text-xs:   0.75rem;
+  --text-sm:   0.875rem;
+  --text-base: 1rem;
+  --text-lg:   1.125rem;
+  --text-xl:   1.25rem;
+  --text-2xl:  1.5rem;
+  --text-3xl:  1.875rem;
+  --text-4xl:  2.25rem;
+  --text-5xl:  3rem;
+  --text-6xl:  3.75rem;
+
+  /* --- Animation durations --- */
+  --dur-instant:  50ms;
+  --dur-fast:     100ms;
+  --dur-normal:   200ms;
+  --dur-moderate: 300ms;
+  --dur-slow:     400ms;
+  --dur-shimmer:  1800ms;
+  --dur-pulse:    2000ms;
+
+  /* --- Easing functions --- */
+  --ease-in:      cubic-bezier(0.4, 0, 1, 1);
+  --ease-out:     cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out:  cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-snappy:  cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-emphasis: cubic-bezier(0.2, 0, 0, 1);
+
+  /* --- Component layout --- */
+  --navbar-height:         64px;
+  --sidebar-width:         240px;
+  --sidebar-width-collapsed: 64px;
+
+  /* --- shadcn/ui compatibility layer --- */
+  --background:            11 13% 4%;
+  --foreground:            216 20% 93%;
+  --card:                  222 16% 13%;
+  --card-foreground:       216 20% 93%;
+  --popover:               222 16% 13%;
+  --popover-foreground:    216 20% 93%;
+  --primary:               36 93% 53%;
+  --primary-foreground:    222 16% 8%;
+  --secondary:             222 16% 16%;
+  --secondary-foreground:  216 20% 93%;
+  --muted:                 222 16% 16%;
+  --muted-foreground:      218 11% 57%;
+  --accent:                222 16% 16%;
+  --accent-foreground:     216 20% 93%;
+  --destructive:           353 91% 62%;
+  --destructive-foreground: 216 20% 93%;
+  --border:                222 12% 20%;
+  --input:                 222 12% 20%;
+  --ring:                  36 93% 53%;
+  --radius:                0.5rem;
+}
+
+/* ============================================================
+   CSS Custom Properties — Light Theme override
+   ============================================================ */
+
+.light {
+  /* --- Backgrounds --- */
+  --bg-base:           #FFFFFF;
+  --bg-elevated:       #F7F8FA;
+  --bg-card:           #FFFFFF;
+  --bg-card-secondary: #F0F2F5;
+  --bg-hover:          #E8EAED;
+  --bg-overlay:        rgba(255, 255, 255, 0.72);
+
+  /* --- Borders --- */
+  --border-subtle:     #E4E7EC;
+  --border-strong:     #CBD2DA;
+  --border-focus:      #F7931A;
+
+  /* --- Text --- */
+  --text-primary:      #0B0E11;
+  --text-secondary:    #5A6275;
+  --text-muted:        #848E9C;
+  --text-inverse:      #EAECEF;
+  --text-on-brand:     #FFFFFF;
+
+  /* --- Brand --- */
+  --brand:             #F7931A;
+  --brand-hover:       #E07800;
+  --brand-active:      #B85F00;
+  --brand-subtle:      rgba(247, 147, 26, 0.10);
+  --brand-glow:        rgba(247, 147, 26, 0.25);
+
+  /* --- Semantic --- */
+  --success:           #0AAD6D;
+  --success-subtle:    rgba(10, 173, 109, 0.10);
+  --success-text:      #078A57;
+
+  --danger:            #D93450;
+  --danger-subtle:     rgba(217, 52, 80, 0.10);
+  --danger-text:       #B52341;
+
+  --warning:           #CC9B09;
+  --warning-subtle:    rgba(204, 155, 9, 0.10);
+  --warning-text:      #A37B07;
+
+  --info:              #1262D6;
+  --info-subtle:       rgba(18, 98, 214, 0.10);
+  --info-text:         #0D4DAD;
+
+  /* --- Chart --- */
+  --price-up:          #0AAD6D;
+  --price-down:        #D93450;
+  --price-neutral:     #848E9C;
+
+  /* --- Shadows (lighter on white) --- */
+  --shadow-xs:         0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-sm:         0 2px 4px rgba(0, 0, 0, 0.08);
+  --shadow-md:         0 4px 12px rgba(0, 0, 0, 0.10);
+  --shadow-lg:         0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-xl:         0 16px 40px rgba(0, 0, 0, 0.14);
+  --shadow-card:       0 2px 8px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 4px 16px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
+
+  /* --- Gradients --- */
+  --gradient-card:       linear-gradient(145deg, #FFFFFF 0%, #F7F8FA 100%);
+  --gradient-card-hover: linear-gradient(145deg, #F7F8FA 0%, #F0F2F5 100%);
+  --gradient-skeleton:   linear-gradient(90deg, #F0F2F5 25%, #E4E7EC 50%, #F0F2F5 75%);
+  --gradient-hero:       radial-gradient(ellipse 80% 60% at 50% -10%, rgba(247, 147, 26, 0.12) 0%, rgba(255, 255, 255, 0) 70%);
+
+  /* --- shadcn/ui compatibility layer (light) --- */
+  --background:          0 0% 100%;
+  --foreground:          222 47% 8%;
+  --card:                0 0% 100%;
+  --card-foreground:     222 47% 8%;
+  --popover:             0 0% 100%;
+  --popover-foreground:  222 47% 8%;
+  --primary:             36 93% 53%;
+  --primary-foreground:  0 0% 100%;
+  --secondary:           220 14% 96%;
+  --secondary-foreground: 222 47% 8%;
+  --muted:               220 14% 96%;
+  --muted-foreground:    220 9% 46%;
+  --accent:              220 14% 96%;
+  --accent-foreground:   222 47% 8%;
+  --destructive:         353 91% 56%;
+  --destructive-foreground: 0 0% 100%;
+  --border:              220 13% 91%;
+  --input:               220 13% 91%;
+  --ring:                36 93% 53%;
+}
+
+/* ============================================================
+   Base layer
+   ============================================================ */
 
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --primary: 24 95% 53%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 24 95% 53%;
-    --radius: 0.5rem;
+  /* Force dark theme by default — override per user preference in layout */
+  html {
+    color-scheme: dark;
+    background-color: var(--bg-base);
+    scroll-behavior: smooth;
   }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --primary: 24 95% 53%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 24 95% 53%;
+  html.light {
+    color-scheme: light;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    border-color: var(--border-subtle);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-size: var(--text-base);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    font-variation-settings: normal;
+  }
+
+  /* Remove default margin/padding on headings */
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+  }
+
+  /* Monospace elements */
+  code, kbd, pre, samp {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+  }
+
+  /* Links */
+  a {
+    color: var(--brand);
+    text-decoration: none;
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+  a:hover {
+    color: var(--brand-hover);
+  }
+
+  /* Images */
+  img, video, svg {
+    display: block;
+    max-width: 100%;
+  }
+
+  /* Horizontal rule */
+  hr {
+    border: none;
+    border-top: 1px solid var(--border-subtle);
+    margin: var(--space-6) 0;
   }
 }
 
-body {
-  font-family: 'Inter', system-ui, sans-serif;
+/* ============================================================
+   Scrollbar styling — custom thin dark scrollbar
+   ============================================================ */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/* WebKit / Blink */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--border-strong);
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  background-clip: content-box;
+  transition: background-color var(--dur-normal) var(--ease-out);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-muted);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ============================================================
+   Focus ring — global accessible focus style
+   ============================================================ */
+
+/* Remove browser default */
+*:focus {
+  outline: none;
+}
+
+/* Visible focus for keyboard navigation */
+*:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius);
+}
+
+/* Input/select specific focus */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  border-color: var(--border-focus) !important;
+  box-shadow: var(--focus-ring);
+}
+
+/* Danger variant focus (e.g. validation error fields) */
+input[aria-invalid="true"]:focus-visible,
+textarea[aria-invalid="true"]:focus-visible {
+  border-color: var(--danger) !important;
+  box-shadow: var(--focus-ring-danger);
+}
+
+/* Skip link (accessibility) */
+.skip-link {
+  position: absolute;
+  top: -9999px;
+  left: var(--space-4);
+  z-index: 9999;
+  background: var(--brand);
+  color: var(--text-on-brand);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+.skip-link:focus {
+  top: var(--space-4);
+}
+
+/* ============================================================
+   Animations / keyframes
+   ============================================================ */
+
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position:  200% 0; }
+}
+
+@keyframes price-blink {
+  0%, 100% { opacity: 1;    }
+  50%       { opacity: 0.55; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(247, 147, 26, 0.6); }
+  50%       { box-shadow: 0 0 16px rgba(247, 147, 26, 1), 0 0 32px rgba(247, 147, 26, 0.5); }
+}
+
+@keyframes fade-slide-up {
+  from { opacity: 0; transform: translateY(8px);  }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes scale-pop {
+  0%   { transform: scale(0.92); opacity: 0; }
+  70%  { transform: scale(1.04); }
+  100% { transform: scale(1);    opacity: 1; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg);   }
+  to   { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   Utility classes
+   ============================================================ */
+
+@layer utilities {
+  /* Text colours */
+  .text-brand         { color: var(--brand); }
+  .text-price-up      { color: var(--price-up); }
+  .text-price-down    { color: var(--price-down); }
+  .text-price-neutral { color: var(--price-neutral); }
+
+  /* Background colours */
+  .bg-card            { background-color: var(--bg-card); }
+  .bg-card-secondary  { background-color: var(--bg-card-secondary); }
+  .bg-brand-subtle    { background-color: var(--brand-subtle); }
+  .bg-success-subtle  { background-color: var(--success-subtle); }
+  .bg-danger-subtle   { background-color: var(--danger-subtle); }
+  .bg-warning-subtle  { background-color: var(--warning-subtle); }
+
+  /* Gradient backgrounds */
+  .bg-gradient-brand  { background: var(--gradient-brand); }
+  .bg-gradient-card   { background: var(--gradient-card); }
+  .bg-gradient-hero   { background: var(--gradient-hero); }
+
+  /* Shadows / glows */
+  .shadow-card        { box-shadow: var(--shadow-card); }
+  .shadow-card-hover  { box-shadow: var(--shadow-card-hover); }
+  .glow-brand         { box-shadow: var(--glow-brand-sm); }
+  .glow-brand-md      { box-shadow: var(--glow-brand-md); }
+  .glow-success       { box-shadow: var(--glow-success); }
+  .glow-danger        { box-shadow: var(--glow-danger); }
+
+  /* Border */
+  .border-subtle      { border-color: var(--border-subtle); }
+  .border-strong      { border-color: var(--border-strong); }
+
+  /* Animations */
+  .animate-shimmer {
+    background: var(--gradient-skeleton);
+    background-size: 200% 100%;
+    animation: shimmer var(--dur-shimmer) ease-in-out infinite;
+  }
+
+  .animate-fade-slide-up {
+    animation: fade-slide-up var(--dur-moderate) var(--ease-emphasis) both;
+  }
+
+  .animate-scale-pop {
+    animation: scale-pop var(--dur-moderate) var(--ease-spring) both;
+  }
+
+  .animate-glow-pulse {
+    animation: glow-pulse var(--dur-pulse) ease-in-out infinite;
+  }
+
+  .animate-price-blink {
+    animation: price-blink 1s ease-in-out 3;
+  }
+
+  /* Typography helpers */
+  .font-mono          { font-family: var(--font-mono); }
+  .tabular-nums       { font-variant-numeric: tabular-nums; }
+  .price-text         { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+  /* Truncation */
+  .truncate-2 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+
+  /* Glass morphism surface */
+  .glass {
+    background: rgba(28, 31, 38, 0.80);
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    border: 1px solid rgba(43, 47, 54, 0.70);
+  }
+
+  /* Inset border highlight (gives card a lifted feel without a stroke) */
+  .inset-highlight {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  /* Interactive card */
+  .card-interactive {
+    transition:
+      box-shadow var(--dur-normal) var(--ease-out),
+      transform  var(--dur-normal) var(--ease-out),
+      background var(--dur-normal) var(--ease-out);
+  }
+  .card-interactive:hover {
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-1px);
+  }
+  .card-interactive:active {
+    transform: translateY(0px);
+  }
 }

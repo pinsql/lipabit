@@ -34,9 +34,10 @@ export class UsersService {
     idBackUrl?: string;
     selfieUrl?: string;
   }) {
+    // HIGH-5 fix: tier stays at TIER_1 until admin approves — never auto-elevate on submission
     const kyc = await this.prisma.kyc.upsert({
       where: { userId },
-      create: { userId, ...data, status: 'PENDING', tier: 'TIER_2', submittedAt: new Date() },
+      create: { userId, ...data, status: 'PENDING', tier: 'TIER_1', submittedAt: new Date() },
       update: { ...data, status: 'PENDING', submittedAt: new Date() },
     });
     return { message: 'KYC submitted for review', kycId: kyc.id };

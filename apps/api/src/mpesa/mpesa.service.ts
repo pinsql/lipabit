@@ -128,8 +128,9 @@ export class MpesaService {
       receiptNumber = receipt?.Value;
     }
 
-    await this.prisma.mpesaTransaction.update({
-      where: { id: mpesaTx.id },
+    // Idempotency: only act if still PENDING — prevents replay attacks
+    const updated = await this.prisma.mpesaTransaction.updateMany({
+      where: { id: mpesaTx.id, status: 'PENDING' },
       data: {
         status,
         resultCode: ResultCode,
@@ -139,6 +140,11 @@ export class MpesaService {
         callbackPayload: payload,
       },
     });
+
+    if (updated.count === 0) {
+      this.logger.warn(`Duplicate STK callback ignored for ${CheckoutRequestID}`);
+      return null;
+    }
 
     return { transactionId: mpesaTx.transactionId, status, receiptNumber };
   }
@@ -203,8 +209,9 @@ export class MpesaService {
 
     const status = ResultCode === 0 ? 'SUCCESS' : 'FAILED';
 
-    await this.prisma.mpesaTransaction.update({
-      where: { id: mpesaTx.id },
+    // Idempotency: only act if still PENDING
+    const updated = await this.prisma.mpesaTransaction.updateMany({
+      where: { id: mpesaTx.id, status: 'PENDING' },
       data: {
         status,
         resultCode: ResultCode,
@@ -214,6 +221,11 @@ export class MpesaService {
         callbackPayload: payload,
       },
     });
+
+    if (updated.count === 0) {
+      this.logger.warn(`Duplicate B2C callback ignored for ${ConversationID}`);
+      return null;
+    }
 
     return { transactionId: mpesaTx.transactionId, status };
   }
