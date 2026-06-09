@@ -1,32 +1,23 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
-  private transporter: nodemailer.Transporter;
+  private resend: Resend;
 
   constructor(private config: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: config.get('SMTP_HOST') || 'smtp.gmail.com',
-      port: parseInt(config.get('SMTP_PORT') || '587'),
-      secure: false,
-      auth: {
-        user: config.get('SMTP_USER'),
-        pass: config.get('SMTP_PASS'),
-      },
-    });
+    this.resend = new Resend(config.get('RESEND_API_KEY') || 're_test_key');
   }
 
   private get fromAddress() {
-    return `LipaBit <${this.config.get('SMTP_FROM') || 'noreply@lipabit.com'}>`;
+    return this.config.get('EMAIL_FROM') || 'LipaBit <onboarding@resend.dev>';
   }
 
   async sendEmailVerification(email: string, name: string, token: string) {
     const frontendUrl = this.config.get('app.frontendUrl') || 'http://localhost:3000';
     const link = `${frontendUrl}/verify-email?token=${token}`;
-
     await this.send(email, 'Verify your LipaBit email', `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
         <h2 style="color:#F7931A">Welcome to LipaBit, ${name}!</h2>
@@ -40,7 +31,6 @@ export class NotificationsService {
   async sendPasswordReset(email: string, name: string, token: string) {
     const frontendUrl = this.config.get('app.frontendUrl') || 'http://localhost:3000';
     const link = `${frontendUrl}/reset-password?token=${token}`;
-
     await this.send(email, 'Reset your LipaBit password', `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
         <h2 style="color:#F7931A">Password Reset</h2>
@@ -63,8 +53,7 @@ export class NotificationsService {
     await this.send(email, `LipaBit: ${action} Confirmed`, `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
         <h2 style="color:#F7931A">Transaction Confirmed</h2>
-        <p>Hi ${name},</p>
-        <p>Your ${action.toLowerCase()} has been processed.</p>
+        <p>Hi ${name}, your ${action.toLowerCase()} has been processed.</p>
         <table style="width:100%;border-collapse:collapse;margin:16px 0">
           <tr><td style="padding:8px;border:1px solid #eee">Reference</td><td style="padding:8px;border:1px solid #eee"><b>${reference}</b></td></tr>
           <tr><td style="padding:8px;border:1px solid #eee">Amount (KES)</td><td style="padding:8px;border:1px solid #eee"><b>KES ${amountKes.toLocaleString()}</b></td></tr>
@@ -77,9 +66,14 @@ export class NotificationsService {
 
   private async send(to: string, subject: string, html: string) {
     try {
-      await this.transporter.sendMail({ from: this.fromAddress, to, subject, html });
+      await this.resend.emails.send({
+        from: this.fromAddress,
+        to,
+        subject,
+        html,
+      });
     } catch (err) {
-      this.logger.error(`Failed to send email to ${to}: ${err.message}`);
+      this.logger.error(`Email send failed to ${to}: ${err.message}`);
     }
   }
 }
