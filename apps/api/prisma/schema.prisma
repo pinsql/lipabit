@@ -1,0 +1,286 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum KycStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum KycTier {
+  TIER_1
+  TIER_2
+  TIER_3
+}
+
+enum TransactionType {
+  BUY_BTC
+  SELL_BTC
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  EXPIRED
+}
+
+enum MpesaTransactionType {
+  STK_PUSH
+  B2C
+}
+
+enum MpesaStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  TIMEOUT
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  phone           String?   @unique
+  passwordHash    String
+  firstName       String?
+  lastName        String?
+  role            UserRole  @default(USER)
+  isEmailVerified Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  twoFactorEnabled Boolean  @default(false)
+  twoFactorSecret  String?
+  lastLoginAt     DateTime?
+  lastLoginIp     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  kyc             Kyc?
+  wallet          BitcoinWallet?
+  transactions    Transaction[]
+  refreshTokens   RefreshToken[]
+  auditLogs       AuditLog[]
+  emailVerifications EmailVerification[]
+  passwordResets  PasswordReset[]
+  loginSessions   LoginSession[]
+
+  @@map("users")
+}
+
+model EmailVerification {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("email_verifications")
+}
+
+model PasswordReset {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_resets")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  deviceInfo String?
+  ipAddress String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model LoginSession {
+  id        String   @id @default(uuid())
+  userId    String
+  ipAddress String?
+  userAgent String?
+  country   String?
+  success   Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("login_sessions")
+}
+
+model Kyc {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  tier           KycTier   @default(TIER_1)
+  status         KycStatus @default(NONE)
+  idType         String?
+  idNumber       String?
+  idFrontUrl     String?
+  idBackUrl      String?
+  selfieUrl      String?
+  rejectionReason String?
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  submittedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("kyc")
+}
+
+model BitcoinWallet {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  address        String   @unique
+  balanceSats    BigInt   @default(0)
+  totalReceivedSats BigInt @default(0)
+  totalSentSats  BigInt   @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deposits       BitcoinTransaction[]
+
+  @@map("bitcoin_wallets")
+}
+
+model BitcoinTransaction {
+  id            String   @id @default(uuid())
+  walletId      String
+  txid          String?  @unique
+  amountSats    BigInt
+  feeSats       BigInt   @default(0)
+  confirmations Int      @default(0)
+  confirmed     Boolean  @default(false)
+  confirmedAt   DateTime?
+  direction     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  wallet        BitcoinWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@map("bitcoin_transactions")
+}
+
+model Transaction {
+  id                String            @id @default(uuid())
+  userId            String
+  type              TransactionType
+  status            TransactionStatus @default(PENDING)
+  amountKes         Decimal           @db.Decimal(18, 2)
+  amountSats        BigInt
+  btcPriceKes       Decimal           @db.Decimal(18, 2)
+  feeKes            Decimal           @db.Decimal(18, 2)
+  feePercent        Decimal           @db.Decimal(5, 4)
+  spreadKes         Decimal           @db.Decimal(18, 2)
+  netAmountKes      Decimal           @db.Decimal(18, 2)
+  reference         String            @unique
+  mpesaRef          String?
+  btcTxid           String?
+  btcAddress        String?
+  expiresAt         DateTime?
+  completedAt       DateTime?
+  failureReason     String?
+  metadata          Json?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  user              User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  mpesaTransaction  MpesaTransaction?
+
+  @@map("transactions")
+}
+
+model MpesaTransaction {
+  id                String               @id @default(uuid())
+  transactionId     String               @unique
+  type              MpesaTransactionType
+  status            MpesaStatus          @default(PENDING)
+  phone             String
+  amountKes         Decimal              @db.Decimal(18, 2)
+  merchantRequestId String?
+  checkoutRequestId String?
+  mpesaReceiptNumber String?
+  resultCode        Int?
+  resultDesc       String?
+  conversationId    String?
+  originatorConvId  String?
+  requestedAt       DateTime             @default(now())
+  completedAt       DateTime?
+  callbackPayload   Json?
+
+  transaction       Transaction          @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@map("mpesa_transactions")
+}
+
+model ExchangeRate {
+  id           String   @id @default(uuid())
+  btcUsd       Decimal  @db.Decimal(18, 2)
+  usdKes       Decimal  @db.Decimal(10, 4)
+  btcKes       Decimal  @db.Decimal(18, 2)
+  buyRateKes   Decimal  @db.Decimal(18, 2)
+  sellRateKes  Decimal  @db.Decimal(18, 2)
+  source       String   @default("binance")
+  createdAt    DateTime @default(now())
+
+  @@map("exchange_rates")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  action     String
+  resource   String?
+  resourceId String?
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model AppSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("app_settings")
+}

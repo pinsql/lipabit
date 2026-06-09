@@ -1,0 +1,15 @@
+node_modules
+.env
+.env.local
+.env.*.local
+dist
+.next
+out
+coverage
+*.log
+.DS_Store
+Thumbs.db
+.turbo
+prisma/migrations/*/migration.sql
+*.pem
+*.key
