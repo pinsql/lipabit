@@ -41,18 +41,18 @@ class SellBtcDto {
 
 @ApiTags('Trading')
 @Controller({ path: 'trading', version: '1' })
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
 export class TradingController {
   constructor(private readonly tradingService: TradingService) {}
 
   @Get('rate')
-  @ApiOperation({ summary: 'Get current BTC/KES exchange rate' })
+  @ApiOperation({ summary: 'Get current BTC/KES exchange rate (public)' })
   getRate() {
     return this.tradingService.getExchangeRate();
   }
 
   @Get('quote')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a price quote before trading' })
   getQuote(
     @CurrentUser('id') userId: string,
@@ -63,18 +63,24 @@ export class TradingController {
   }
 
   @Post('buy')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Buy Bitcoin with M-Pesa (STK Push)' })
   buyBtc(@CurrentUser('id') userId: string, @Body() dto: BuyBtcDto) {
     return this.tradingService.initiateBuyBtc(userId, dto.amountKes, dto.phone);
   }
 
   @Post('sell')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Sell Bitcoin and receive M-Pesa payout' })
   sellBtc(@CurrentUser('id') userId: string, @Body() dto: SellBtcDto) {
     return this.tradingService.initiateSellBtc(userId, dto.amountSats, dto.phone);
   }
 
   @Get('transactions')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get transaction history' })
   getHistory(
     @CurrentUser('id') userId: string,
@@ -85,6 +91,8 @@ export class TradingController {
   }
 
   @Get('transactions/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a specific transaction' })
   getTransaction(@CurrentUser('id') userId: string, @Param('id') id: string) {
     return this.tradingService.getTransactionById(userId, id);
