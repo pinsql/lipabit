@@ -3,7 +3,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/auth';
 
 // ---------------------------------------------------------------------------
@@ -701,16 +700,16 @@ export default function DashboardLayout({
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
         {/* Desktop sidebar */}
-        <motion.aside
+        <aside
           className="hidden lg:flex"
-          animate={{ width: desktopWidth }}
-          transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
           style={{
+            width:      desktopWidth,
             height:     '100vh',
             position:   'sticky',
             top:        0,
             flexShrink: 0,
             overflow:   'hidden',
+            transition: 'width 220ms cubic-bezier(0.4,0,0.2,1)',
           }}
         >
           {hydrated && (
@@ -720,7 +719,7 @@ export default function DashboardLayout({
               onToggleCollapse={toggleCollapse}
             />
           )}
-        </motion.aside>
+        </aside>
 
         {/* Main content */}
         <main
@@ -739,53 +738,38 @@ export default function DashboardLayout({
       {/* ------------------------------------------------------------------ */}
       {/* Mobile drawer + backdrop                                            */}
       {/* ------------------------------------------------------------------ */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              key="mobile-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              onClick={closeMobile}
-              className="lg:hidden"
-              style={{
-                position:   'fixed',
-                inset:      0,
-                background: 'rgba(11,14,17,0.75)',
-                backdropFilter: 'blur(3px)',
-                zIndex:     300,
-              }}
+      {mobileOpen && (
+        <>
+          <div
+            onClick={closeMobile}
+            className="lg:hidden"
+            style={{
+              position:       'fixed',
+              inset:          0,
+              background:     'rgba(11,14,17,0.75)',
+              backdropFilter: 'blur(3px)',
+              zIndex:         300,
+            }}
+          />
+          <div
+            className="lg:hidden"
+            style={{
+              position:   'fixed',
+              top:        0,
+              left:       0,
+              bottom:     0,
+              width:      SIDEBAR_EXPANDED,
+              zIndex:     400,
+            }}
+          >
+            <SidebarInner
+              collapsed={false}
+              isDesktop={false}
+              onClose={closeMobile}
             />
-
-            {/* Drawer */}
-            <motion.div
-              key="mobile-drawer"
-              initial={{ x: -SIDEBAR_EXPANDED }}
-              animate={{ x: 0 }}
-              exit={{ x: -SIDEBAR_EXPANDED }}
-              transition={{ duration: 0.26, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="lg:hidden"
-              style={{
-                position: 'fixed',
-                top:      0,
-                left:     0,
-                bottom:   0,
-                width:    SIDEBAR_EXPANDED,
-                zIndex:   400,
-              }}
-            >
-              <SidebarInner
-                collapsed={false}
-                isDesktop={false}
-                onClose={closeMobile}
-              />
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+          </div>
+        </>
+      )}
     </div>
   );
 }
