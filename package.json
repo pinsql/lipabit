@@ -15,6 +15,14 @@
     "db:generate": "cd apps/api && npx prisma generate",
     "db:studio": "cd apps/api && npx prisma studio"
   },
+  "overrides": {
+    "react": "$react",
+    "react-dom": "$react-dom"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
   "devDependencies": {
     "turbo": "^2.3.3"
   },
