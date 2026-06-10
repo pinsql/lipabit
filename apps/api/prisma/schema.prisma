@@ -119,6 +119,7 @@ model RefreshToken {
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, revokedAt])
   @@map("refresh_tokens")
 }
 
@@ -218,6 +219,10 @@ model Transaction {
   user              User              @relation(fields: [userId], references: [id], onDelete: Restrict)
   mpesaTransaction  MpesaTransaction?
 
+  @@index([userId, createdAt])
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@index([reference])
   @@map("transactions")
 }
 
@@ -241,6 +246,9 @@ model MpesaTransaction {
 
   transaction       Transaction          @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
+  @@index([transactionId])
+  @@index([checkoutRequestId])
+  @@index([conversationId])
   @@map("mpesa_transactions")
 }
 
@@ -273,6 +281,7 @@ model AuditLog {
   @@index([userId])
   @@index([action])
   @@index([createdAt])
+  @@index([userId, createdAt])
   @@map("audit_logs")
 }
 
