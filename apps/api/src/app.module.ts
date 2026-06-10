@@ -8,17 +8,19 @@ import { MpesaModule } from './mpesa/mpesa.module';
 import { TradingModule } from './trading/trading.module';
 import { AdminModule } from './admin/admin.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { EthereumModule } from './ethereum/ethereum.module';
 import { PrismaModule } from './prisma/prisma.module';
 import appConfig from './config/app.config';
 import authConfig from './config/auth.config';
 import mpesaConfig from './config/mpesa.config';
 import bitcoinConfig from './config/bitcoin.config';
+import ethereumConfig from './config/ethereum.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, authConfig, mpesaConfig, bitcoinConfig],
+      load: [appConfig, authConfig, mpesaConfig, bitcoinConfig, ethereumConfig],
       envFilePath: ['.env.local', '.env'],
     }),
     ThrottlerModule.forRoot([
@@ -27,6 +29,7 @@ import bitcoinConfig from './config/bitcoin.config';
       { name: 'long', ttl: 3600000, limit: 1000 },
     ]),
     PrismaModule,
+    EthereumModule,
     AuthModule,
     UsersModule,
     BitcoinModule,

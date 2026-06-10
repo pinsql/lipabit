@@ -148,8 +148,8 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard',    label: 'Dashboard',    Icon: IconDashboard    },
-  { href: '/buy',          label: 'Buy BTC',      Icon: IconBuyBTC       },
-  { href: '/sell',         label: 'Sell BTC',     Icon: IconSellBTC      },
+  { href: '/buy',          label: 'Buy Crypto',   Icon: IconBuyBTC       },
+  { href: '/sell',         label: 'Sell Crypto',  Icon: IconSellBTC      },
   { href: '/transactions', label: 'Transactions', Icon: IconTransactions },
   { href: '/profile',      label: 'Profile',      Icon: IconProfile      },
   { href: '/settings',     label: 'Settings',     Icon: IconSettings     },

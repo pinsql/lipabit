@@ -146,6 +146,19 @@ export class MpesaService {
       return null;
     }
 
+    // Update parent Transaction status
+    if (status === 'SUCCESS') {
+      await this.prisma.transaction.update({
+        where: { id: mpesaTx.transactionId },
+        data: { status: 'PROCESSING' },
+      });
+    } else if (status === 'FAILED') {
+      await this.prisma.transaction.update({
+        where: { id: mpesaTx.transactionId },
+        data: { status: 'FAILED', failureReason: ResultDesc },
+      });
+    }
+
     return { transactionId: mpesaTx.transactionId, status, receiptNumber };
   }
 

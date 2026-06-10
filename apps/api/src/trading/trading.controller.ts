@@ -6,23 +6,58 @@ import {
   Query,
   Param,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { TradingService } from './trading.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { IsNumber, IsString, Min, Max, Matches } from 'class-validator';
+import {
+  IsNumber,
+  IsString,
+  IsOptional,
+  IsIn,
+  Min,
+  Max,
+  Matches,
+  IsEmail,
+} from 'class-validator';
 import { Type } from 'class-transformer';
-// Note: Min/Max/Type are used in DTO class properties only, not on controller params
 import { ApiProperty } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 
 const KE_PHONE = /^\+254[0-9]{9}$/;
 const KE_PHONE_MSG = 'Must be a valid Kenyan number (+254XXXXXXXXX)';
 
-class BuyBtcDto {
+class GuestBuyDto {
+  @ApiProperty({ example: 'BTC' })
+  @IsIn(['BTC', 'ETH'])
+  coin: 'BTC' | 'ETH';
+
   @ApiProperty({ example: 5000 })
-  @IsNumber() @Min(500) @Max(500000) @Type(() => Number)
+  @IsNumber() @Min(100) @Max(1000000) @Type(() => Number)
+  amountKes: number;
+
+  @ApiProperty({ example: 'bc1q...' })
+  @IsString()
+  cryptoAddress: string;
+
+  @ApiProperty({ example: '+254712345678' })
+  @IsString() @Matches(KE_PHONE, { message: KE_PHONE_MSG })
+  phone: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional() @IsEmail()
+  email?: string;
+}
+
+class GuestSellDto {
+  @ApiProperty({ example: 'BTC' })
+  @IsIn(['BTC', 'ETH'])
+  coin: 'BTC' | 'ETH';
+
+  @ApiProperty({ example: 5000, description: 'KES value to sell' })
+  @IsNumber() @Min(100) @Max(1000000) @Type(() => Number)
   amountKes: number;
 
   @ApiProperty({ example: '+254712345678' })
@@ -30,14 +65,18 @@ class BuyBtcDto {
   phone: string;
 }
 
-class SellBtcDto {
-  @ApiProperty({ example: 50000, description: 'Amount in satoshis' })
-  @IsNumber() @Min(1000) @Type(() => Number)
-  amountSats: number;
+class QuoteQueryDto {
+  @ApiProperty({ example: 'BTC' })
+  @IsIn(['BTC', 'ETH'])
+  coin: 'BTC' | 'ETH';
 
-  @ApiProperty({ example: '+254712345678' })
-  @IsString() @Matches(KE_PHONE, { message: KE_PHONE_MSG })
-  phone: string;
+  @ApiProperty({ example: 'BUY' })
+  @IsIn(['BUY', 'SELL'])
+  type: 'BUY' | 'SELL';
+
+  @ApiProperty({ example: 5000 })
+  @IsNumber() @Min(100) @Type(() => Number)
+  amountKes: number;
 }
 
 @ApiTags('Trading')
@@ -46,44 +85,52 @@ export class TradingController {
   constructor(private readonly tradingService: TradingService) {}
 
   @Get('rate')
-  @Throttle({ short: { limit: 10, ttl: 60000 } })
-  @ApiOperation({ summary: 'Get current BTC/KES exchange rate (public)' })
+  @Throttle({ short: { limit: 30, ttl: 60000 } })
+  @ApiOperation({ summary: 'Get current exchange rates (public)' })
   getRate() {
     return this.tradingService.getExchangeRate();
   }
 
   @Get('quote')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get a price quote before trading' })
+  @Throttle({ short: { limit: 20, ttl: 60000 } })
+  @ApiOperation({ summary: 'Get price quote (public)' })
   getQuote(
-    @CurrentUser('id') userId: string,
-    @Query('type') type: 'BUY_BTC' | 'SELL_BTC',
-    @Query('amountKes') amountKes: number,
+    @Query('coin') coin: 'BTC' | 'ETH' = 'BTC',
+    @Query('type') type: 'BUY' | 'SELL' = 'BUY',
+    @Query('amountKes') amountKes: string,
+    @Request() req: any,
   ) {
-    return this.tradingService.getQuote(userId, type, Number(amountKes));
+    const userId = req.user?.id;
+    return this.tradingService.getQuote(coin, type, Number(amountKes), userId);
   }
 
   @Post('buy')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Buy Bitcoin with M-Pesa (STK Push)' })
-  buyBtc(@CurrentUser('id') userId: string, @Body() dto: BuyBtcDto) {
-    return this.tradingService.initiateBuyBtc(userId, dto.amountKes, dto.phone);
+  @Throttle({ short: { limit: 5, ttl: 60000 } })
+  @ApiOperation({ summary: 'Buy crypto with M-Pesa STK Push (guest or authenticated)' })
+  buy(@Body() dto: GuestBuyDto, @Request() req: any) {
+    const userId = req.user?.id;
+    return this.tradingService.initiateBuy(dto.coin, dto.amountKes, dto.cryptoAddress, dto.phone, userId);
   }
 
   @Post('sell')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Sell Bitcoin and receive M-Pesa payout' })
-  sellBtc(@CurrentUser('id') userId: string, @Body() dto: SellBtcDto) {
-    return this.tradingService.initiateSellBtc(userId, dto.amountSats, dto.phone);
+  @Throttle({ short: { limit: 5, ttl: 60000 } })
+  @ApiOperation({ summary: 'Sell crypto for M-Pesa payout (guest or authenticated)' })
+  sell(@Body() dto: GuestSellDto, @Request() req: any) {
+    const userId = req.user?.id;
+    return this.tradingService.initiateSell(dto.coin, dto.amountKes, dto.phone, userId);
+  }
+
+  @Get('track/:reference')
+  @Throttle({ short: { limit: 30, ttl: 60000 } })
+  @ApiOperation({ summary: 'Track a transaction by reference (public)' })
+  track(@Param('reference') reference: string) {
+    return this.tradingService.getTransactionByReference(reference);
   }
 
   @Get('transactions')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get transaction history' })
+  @ApiOperation({ summary: 'Get transaction history (authenticated)' })
   getHistory(
     @CurrentUser('id') userId: string,
     @Query('page') page = '1',
@@ -97,7 +144,7 @@ export class TradingController {
   @Get('transactions/:id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get a specific transaction' })
+  @ApiOperation({ summary: 'Get a specific transaction (authenticated)' })
   getTransaction(@CurrentUser('id') userId: string, @Param('id') id: string) {
     return this.tradingService.getTransactionById(userId, id);
   }

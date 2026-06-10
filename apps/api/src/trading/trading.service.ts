@@ -8,23 +8,22 @@ import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { PrismaService } from '../prisma/prisma.service';
 import { MpesaService } from '../mpesa/mpesa.service';
+import { BitcoinService } from '../bitcoin/bitcoin.service';
+import { EthereumService } from '../ethereum/ethereum.service';
 import { firstValueFrom } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
 import { Decimal } from '@prisma/client/runtime/library';
 
+const GUEST_FEE = 0.025;
 const FEES_BY_TIER: Record<string, number> = {
   TIER_1: 0.025,
   TIER_2: 0.02,
   TIER_3: 0.015,
 };
-
 const SPREAD = 0.01;
-const MIN_KES = 500;
-const MAX_KES_TIER1 = 30000;
-const MAX_KES_TIER2 = 500000;
-const MAX_KES_TIER3 = 5000000;
-const SATS_PER_BTC = 100000000;
-const RATE_CACHE_TTL_MS = 30_000; // 30s — don't hammer Binance on every public request
+const MIN_KES = 100;
+const SATS_PER_BTC = 100_000_000;
+const RATE_CACHE_TTL_MS = 30_000;
 
 @Injectable()
 export class TradingService {
@@ -36,6 +35,8 @@ export class TradingService {
     private config: ConfigService,
     private http: HttpService,
     private mpesa: MpesaService,
+    private bitcoin: BitcoinService,
+    private ethereum: EthereumService,
   ) {}
 
   async getExchangeRate() {
@@ -43,33 +44,57 @@ export class TradingService {
       return this.rateCache.data;
     }
     try {
-      const [binanceRes, fxRes] = await Promise.all([
+      const [btcRes, ethRes, fxRes] = await Promise.all([
         firstValueFrom(
           this.http.get('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT'),
+        ),
+        firstValueFrom(
+          this.http.get('https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT'),
         ),
         firstValueFrom(
           this.http.get('https://open.er-api.com/v6/latest/USD'),
         ),
       ]);
 
-      const btcUsd = parseFloat(binanceRes.data.price);
+      const btcUsd = parseFloat(btcRes.data.price);
+      const ethUsd = parseFloat(ethRes.data.price);
       const usdKes = fxRes.data.rates?.KES || 129.5;
+
       const btcKes = btcUsd * usdKes;
-      const buyRateKes = btcKes * (1 + SPREAD);
-      const sellRateKes = btcKes * (1 - SPREAD);
+      const ethKes = ethUsd * usdKes;
+
+      const result = {
+        BTC: {
+          usd: btcUsd,
+          kes: btcKes,
+          buyRateKes: btcKes * (1 + SPREAD),
+          sellRateKes: btcKes * (1 - SPREAD),
+        },
+        ETH: {
+          usd: ethUsd,
+          kes: ethKes,
+          buyRateKes: ethKes * (1 + SPREAD),
+          sellRateKes: ethKes * (1 - SPREAD),
+        },
+        usdKes,
+        updatedAt: new Date(),
+      };
 
       await this.prisma.exchangeRate.create({
         data: {
           btcUsd: new Decimal(btcUsd.toFixed(2)),
+          ethUsd: new Decimal(ethUsd.toFixed(2)),
           usdKes: new Decimal(usdKes.toFixed(4)),
           btcKes: new Decimal(btcKes.toFixed(2)),
-          buyRateKes: new Decimal(buyRateKes.toFixed(2)),
-          sellRateKes: new Decimal(sellRateKes.toFixed(2)),
+          ethKes: new Decimal(ethKes.toFixed(2)),
+          buyRateKes: new Decimal(result.BTC.buyRateKes.toFixed(2)),
+          sellRateKes: new Decimal(result.BTC.sellRateKes.toFixed(2)),
+          ethBuyRateKes: new Decimal(result.ETH.buyRateKes.toFixed(2)),
+          ethSellRateKes: new Decimal(result.ETH.sellRateKes.toFixed(2)),
           source: 'binance',
         },
       });
 
-      const result = { btcUsd, usdKes, btcKes, buyRateKes, sellRateKes, updatedAt: new Date() };
       this.rateCache = { data: result, expiresAt: Date.now() + RATE_CACHE_TTL_MS };
       return result;
     } catch (err) {
@@ -77,77 +102,102 @@ export class TradingService {
       const last = await this.prisma.exchangeRate.findFirst({ orderBy: { createdAt: 'desc' } });
       if (!last) throw new BadRequestException('Exchange rate unavailable');
       return {
-        btcUsd: parseFloat(last.btcUsd.toString()),
+        BTC: {
+          usd: parseFloat(last.btcUsd.toString()),
+          kes: parseFloat(last.btcKes.toString()),
+          buyRateKes: parseFloat(last.buyRateKes.toString()),
+          sellRateKes: parseFloat(last.sellRateKes.toString()),
+        },
+        ETH: {
+          usd: last.ethUsd ? parseFloat(last.ethUsd.toString()) : 0,
+          kes: last.ethKes ? parseFloat(last.ethKes.toString()) : 0,
+          buyRateKes: last.ethBuyRateKes ? parseFloat(last.ethBuyRateKes.toString()) : 0,
+          sellRateKes: last.ethSellRateKes ? parseFloat(last.ethSellRateKes.toString()) : 0,
+        },
         usdKes: parseFloat(last.usdKes.toString()),
-        btcKes: parseFloat(last.btcKes.toString()),
-        buyRateKes: parseFloat(last.buyRateKes.toString()),
-        sellRateKes: parseFloat(last.sellRateKes.toString()),
         updatedAt: last.createdAt,
         cached: true,
       };
     }
   }
 
-  async getQuote(userId: string, type: 'BUY_BTC' | 'SELL_BTC', amountKes: number) {
-    const user = await this.getUserWithKyc(userId);
-    const tier = user.kyc?.tier || 'TIER_1';
-    const feePercent = FEES_BY_TIER[tier];
-    const dailyLimit = this.getDailyLimit(tier);
-
+  async getQuote(coin: 'BTC' | 'ETH', type: 'BUY' | 'SELL', amountKes: number, userId?: string) {
     if (amountKes < MIN_KES) {
       throw new BadRequestException(`Minimum transaction is KES ${MIN_KES}`);
     }
-    if (amountKes > dailyLimit) {
-      throw new BadRequestException(`Maximum transaction for your account tier is KES ${dailyLimit}`);
+
+    let feePercent = GUEST_FEE;
+    if (userId) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        include: { kyc: { select: { tier: true } } },
+      });
+      feePercent = FEES_BY_TIER[user?.kyc?.tier || 'TIER_1'];
     }
 
-    const rate = await this.getExchangeRate();
-    const btcPriceKes = type === 'BUY_BTC' ? rate.buyRateKes : rate.sellRateKes;
+    const rates = await this.getExchangeRate();
+    const coinRate = rates[coin];
+    const priceKes = type === 'BUY' ? coinRate.buyRateKes : coinRate.sellRateKes;
     const feeKes = amountKes * feePercent;
     const spreadKes = amountKes * SPREAD;
 
     let netAmountKes: number;
-    let amountSats: number;
+    let cryptoAmount: number;
 
-    if (type === 'BUY_BTC') {
+    if (type === 'BUY') {
       netAmountKes = amountKes - feeKes;
-      amountSats = Math.floor((netAmountKes / btcPriceKes) * SATS_PER_BTC);
+      cryptoAmount = netAmountKes / priceKes;
     } else {
-      amountSats = Math.floor((amountKes / btcPriceKes) * SATS_PER_BTC);
+      cryptoAmount = amountKes / priceKes;
       netAmountKes = amountKes - feeKes;
     }
 
+    const amountSats = coin === 'BTC' ? Math.floor(cryptoAmount * SATS_PER_BTC) : undefined;
+    const amountEth = coin === 'ETH' ? cryptoAmount : undefined;
+    const amountWei = coin === 'ETH' ? this.ethereum.ethToWei(cryptoAmount).toString() : undefined;
+
     return {
+      coin,
       type,
       amountKes,
       feeKes: parseFloat(feeKes.toFixed(2)),
       feePercent: feePercent * 100,
       spreadKes: parseFloat(spreadKes.toFixed(2)),
       netAmountKes: parseFloat(netAmountKes.toFixed(2)),
-      amountSats,
-      btcPriceKes: parseFloat(btcPriceKes.toFixed(2)),
-      expiresIn: 300,
-      tier,
+      cryptoPriceKes: parseFloat(priceKes.toFixed(2)),
+      ...(coin === 'BTC' ? { amountSats } : {}),
+      ...(coin === 'ETH' ? { amountEth: parseFloat(cryptoAmount.toFixed(8)), amountWei } : {}),
+      expiresIn: 60,
     };
   }
 
-  async initiateBuyBtc(userId: string, amountKes: number, phone: string) {
-    const quote = await this.getQuote(userId, 'BUY_BTC', amountKes);
+  async initiateBuy(
+    coin: 'BTC' | 'ETH',
+    amountKes: number,
+    cryptoAddress: string,
+    phone: string,
+    userId?: string,
+  ) {
+    const quote = await this.getQuote(coin, 'BUY', amountKes, userId);
     const reference = `LB-${uuidv4().slice(0, 8).toUpperCase()}`;
 
     const transaction = await this.prisma.transaction.create({
       data: {
-        userId,
-        type: 'BUY_BTC',
+        userId: userId || null,
+        coin,
+        type: coin === 'BTC' ? 'BUY_BTC' : 'BUY_ETH',
         status: 'PENDING',
         amountKes: new Decimal(amountKes),
-        amountSats: BigInt(quote.amountSats),
-        btcPriceKes: new Decimal(quote.btcPriceKes),
+        amountSats: coin === 'BTC' ? BigInt(quote.amountSats!) : BigInt(0),
+        amountWei: coin === 'ETH' ? BigInt(quote.amountWei!) : null,
+        cryptoPriceKes: new Decimal(quote.cryptoPriceKes),
         feeKes: new Decimal(quote.feeKes),
         feePercent: new Decimal(quote.feePercent / 100),
         spreadKes: new Decimal(quote.spreadKes),
         netAmountKes: new Decimal(quote.netAmountKes),
         reference,
+        cryptoAddress,
+        guestPhone: userId ? null : phone,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000),
       },
     });
@@ -156,7 +206,7 @@ export class TradingService {
       phone,
       amountKes,
       transaction.id,
-      `Buy Bitcoin - ${reference}`,
+      `Buy ${coin} - ${reference}`,
     );
 
     await this.prisma.transaction.update({
@@ -168,94 +218,75 @@ export class TradingService {
       transactionId: transaction.id,
       reference,
       amountKes,
-      amountSats: quote.amountSats,
+      coin,
+      ...(coin === 'BTC' ? { amountSats: quote.amountSats } : { amountEth: quote.amountEth }),
       feeKes: quote.feeKes,
-      btcPriceKes: quote.btcPriceKes,
+      cryptoPriceKes: quote.cryptoPriceKes,
       checkoutRequestId: stk.checkoutRequestId,
       message: 'Check your phone for the M-Pesa payment prompt',
     };
   }
 
-  async initiateSellBtc(userId: string, amountSats: number, phone: string) {
-    const wallet = await this.prisma.bitcoinWallet.findUnique({ where: { userId } });
-    if (!wallet || wallet.balanceSats < BigInt(amountSats)) {
-      throw new BadRequestException('Insufficient Bitcoin balance');
-    }
-
-    const rate = await this.getExchangeRate();
-    const tier = (await this.getUserWithKyc(userId))?.kyc?.tier || 'TIER_1';
-    const feePercent = FEES_BY_TIER[tier];
-    const grossKes = (amountSats / SATS_PER_BTC) * rate.sellRateKes;
-    const feeKes = grossKes * feePercent;
-    const netKes = grossKes - feeKes;
+  async initiateSell(
+    coin: 'BTC' | 'ETH',
+    amountKes: number,
+    phone: string,
+    userId?: string,
+  ) {
+    const quote = await this.getQuote(coin, 'SELL', amountKes, userId);
     const reference = `LS-${uuidv4().slice(0, 8).toUpperCase()}`;
 
-    if (grossKes < MIN_KES) throw new BadRequestException(`Minimum transaction is KES ${MIN_KES}`);
+    let depositAddress: string;
+    if (coin === 'BTC') {
+      depositAddress = await this.bitcoin.generateTransactionDepositAddress(reference);
+    } else {
+      depositAddress = await this.ethereum.generateTransactionDepositAddress(reference);
+    }
 
-    // CRIT-4 fix: create transaction record first WITHOUT decrementing balance.
-    // Balance is only deducted after B2C payout is confirmed via callback.
-    // Use updateMany with a balance guard to prevent race conditions / negative balances.
     const transaction = await this.prisma.transaction.create({
       data: {
-        userId,
-        type: 'SELL_BTC',
-        status: 'PENDING',
-        amountKes: new Decimal(grossKes.toFixed(2)),
-        amountSats: BigInt(amountSats),
-        btcPriceKes: new Decimal(rate.sellRateKes.toFixed(2)),
-        feeKes: new Decimal(feeKes.toFixed(2)),
-        feePercent: new Decimal(feePercent),
-        spreadKes: new Decimal((grossKes * SPREAD).toFixed(2)),
-        netAmountKes: new Decimal(netKes.toFixed(2)),
+        userId: userId || null,
+        coin,
+        type: coin === 'BTC' ? 'SELL_BTC' : 'SELL_ETH',
+        status: 'AWAITING_CRYPTO',
+        amountKes: new Decimal(amountKes),
+        amountSats: coin === 'BTC' ? BigInt(quote.amountSats!) : BigInt(0),
+        amountWei: coin === 'ETH' ? BigInt(quote.amountWei!) : null,
+        cryptoPriceKes: new Decimal(quote.cryptoPriceKes),
+        feeKes: new Decimal(quote.feeKes),
+        feePercent: new Decimal(quote.feePercent / 100),
+        spreadKes: new Decimal(quote.spreadKes),
+        netAmountKes: new Decimal(quote.netAmountKes),
         reference,
-        metadata: { pendingAmountSats: amountSats, phone },
+        depositAddress,
+        guestPhone: userId ? null : phone,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        metadata: { payoutPhone: phone },
       },
-    });
-
-    let b2c: any;
-    try {
-      b2c = await this.mpesa.initiateB2C(
-        phone,
-        netKes,
-        transaction.id,
-        `LipaBit BTC sale ${reference}`,
-      );
-    } catch (err) {
-      // B2C failed — mark transaction failed, do NOT touch wallet
-      await this.prisma.transaction.update({
-        where: { id: transaction.id },
-        data: { status: 'FAILED', failureReason: err.message },
-      });
-      throw err;
-    }
-
-    // Lock (not deduct) the sats — deduction happens in handleB2CCallback on SUCCESS
-    const locked = await this.prisma.bitcoinWallet.updateMany({
-      where: { userId, balanceSats: { gte: BigInt(amountSats) } },
-      data: { balanceSats: { decrement: BigInt(amountSats) } },
-    });
-
-    if (locked.count === 0) {
-      await this.prisma.transaction.update({
-        where: { id: transaction.id },
-        data: { status: 'FAILED', failureReason: 'Insufficient balance at lock time' },
-      });
-      throw new BadRequestException('Insufficient Bitcoin balance');
-    }
-
-    await this.prisma.transaction.update({
-      where: { id: transaction.id },
-      data: { status: 'PROCESSING' },
     });
 
     return {
       transactionId: transaction.id,
       reference,
-      amountSats,
-      netAmountKes: parseFloat(netKes.toFixed(2)),
-      feeKes: parseFloat(feeKes.toFixed(2)),
-      message: 'M-Pesa payment initiated. You will receive funds shortly.',
+      coin,
+      depositAddress,
+      amountKes,
+      ...(coin === 'BTC' ? { amountSats: quote.amountSats } : { amountEth: quote.amountEth }),
+      netAmountKes: quote.netAmountKes,
+      feeKes: quote.feeKes,
+      cryptoPriceKes: quote.cryptoPriceKes,
+      expiresAt: transaction.expiresAt,
+      message: `Send ${coin} to the deposit address to proceed`,
     };
+  }
+
+  async getTransactionByReference(reference: string) {
+    const tx = await this.prisma.transaction.findUnique({
+      where: { reference },
+      include: { mpesaTransaction: { select: { status: true, mpesaReceiptNumber: true, completedAt: true } } },
+    });
+    if (!tx) throw new NotFoundException('Transaction not found');
+    return this.sanitizeForPublic(tx);
   }
 
   async getTransactionHistory(userId: string, page = 1, limit = 20) {
@@ -270,7 +301,6 @@ export class TradingService {
       }),
       this.prisma.transaction.count({ where: { userId } }),
     ]);
-
     return { items, total, page, limit, pages: Math.ceil(total / limit) };
   }
 
@@ -283,21 +313,16 @@ export class TradingService {
     return tx;
   }
 
-  private async getUserWithKyc(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: { kyc: { select: { tier: true, status: true } } },
-    });
-    if (!user) throw new NotFoundException('User not found');
-    return user;
+  private sanitizeForPublic(tx: any) {
+    const { guestPhone, guestEmail, userId, ...safe } = tx;
+    if (safe.cryptoAddress) {
+      safe.cryptoAddress = this.maskAddress(safe.cryptoAddress);
+    }
+    return safe;
   }
 
-  private getDailyLimit(tier: string): number {
-    const limits: Record<string, number> = {
-      TIER_1: MAX_KES_TIER1,
-      TIER_2: MAX_KES_TIER2,
-      TIER_3: MAX_KES_TIER3,
-    };
-    return limits[tier] || MAX_KES_TIER1;
+  private maskAddress(address: string): string {
+    if (address.length <= 12) return address;
+    return `${address.slice(0, 6)}...${address.slice(-6)}`;
   }
 }

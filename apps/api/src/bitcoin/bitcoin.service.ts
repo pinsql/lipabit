@@ -39,7 +39,6 @@ export class BitcoinService {
     let address: string;
 
     try {
-      const walletName = this.config.get('bitcoin.walletName');
       address = await this.rpcCall('getnewaddress', [userId, 'bech32']);
     } catch {
       address = this.generateDemoAddress();
@@ -51,6 +50,16 @@ export class BitcoinService {
     });
 
     return address;
+  }
+
+  async generateTransactionDepositAddress(transactionRef: string): Promise<string> {
+    try {
+      return await this.rpcCall('getnewaddress', [transactionRef, 'bech32']);
+    } catch {
+      const address = this.generateDemoAddress();
+      this.logger.warn(`Bitcoin node unavailable — placeholder deposit address for ${transactionRef}`);
+      return address;
+    }
   }
 
   async checkDeposits() {
@@ -106,6 +115,60 @@ export class BitcoinService {
       }
     } catch (err) {
       this.logger.error('Deposit check cycle failed', err.message);
+    }
+  }
+
+  async checkSellDeposits() {
+    try {
+      const pendingSells = await this.prisma.transaction.findMany({
+        where: {
+          coin: 'BTC',
+          type: 'SELL_BTC',
+          status: 'AWAITING_CRYPTO',
+          depositAddress: { not: null },
+        },
+      });
+
+      if (pendingSells.length === 0) return;
+
+      const minConf = this.config.get<number>('bitcoin.minConfirmations') ?? 3;
+
+      for (const tx of pendingSells) {
+        try {
+          const received = await this.rpcCall('listreceivedbyaddress', [
+            0,
+            false,
+            true,
+            tx.depositAddress,
+          ]);
+
+          for (const entry of received || []) {
+            if (entry.amount <= 0) continue;
+            const amountSats = Math.round(entry.amount * 1e8);
+            const confirmed = entry.confirmations >= minConf;
+
+            if (confirmed) {
+              await this.prisma.transaction.update({
+                where: { id: tx.id },
+                data: {
+                  status: 'PROCESSING',
+                  cryptoTxid: entry.txids?.[0] || null,
+                  metadata: {
+                    ...(tx.metadata as object || {}),
+                    receivedSats: amountSats,
+                    confirmations: entry.confirmations,
+                  },
+                },
+              });
+              this.logger.log(`BTC sell deposit confirmed for ${tx.reference}: ${amountSats} sats`);
+            }
+          }
+        } catch (err) {
+          this.logger.error(`Failed to check sell deposit for ${tx.reference}`, err.message);
+        }
+      }
+    } catch (err) {
+      this.logger.error('Sell deposit check cycle failed', err.message);
     }
   }
 
