@@ -66,11 +66,6 @@ async function bootstrap() {
 
   const port = process.env.PORT || 4000;
   await app.listen(port);
-  // Expose a health endpoint outside versioning/global-prefix for container probes
-  const httpAdapter = app.getHttpAdapter();
-  httpAdapter.get('/health', (_req: unknown, res: { status: (n: number) => { json: (v: unknown) => void } }) => {
-    res.status(200).json({ status: 'ok' });
-  });
   console.log(`LipaBit API running on port ${port}`);
 }
 
