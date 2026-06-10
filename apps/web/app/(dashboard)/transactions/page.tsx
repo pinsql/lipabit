@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '@/lib/api';
 
 // ---------------------------------------------------------------------------
@@ -449,13 +448,7 @@ function DetailPanel({
   );
 
   return (
-    <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: 'auto' }}
-      exit={{ opacity: 0, height: 0 }}
-      transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-      style={{ overflow: 'hidden' }}
-    >
+    <div style={{ overflow: 'hidden' }}>
       <div
         style={{
           background:  C.bgCardSecondary,
@@ -486,7 +479,7 @@ function DetailPanel({
           />
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -599,15 +592,13 @@ function TxTableRow({
       </tr>
 
       {/* Detail panel injected as full-width row */}
-      <AnimatePresence>
-        {expanded && (
-          <tr key={`${tx.id}-detail`}>
-            <td colSpan={5} style={{ padding: 0, borderBottom: `1px solid ${C.border}` }}>
-              <DetailPanel tx={tx} onCopy={onCopy} />
-            </td>
-          </tr>
-        )}
-      </AnimatePresence>
+      {expanded && (
+        <tr key={`${tx.id}-detail`}>
+          <td colSpan={5} style={{ padding: 0, borderBottom: `1px solid ${C.border}` }}>
+            <DetailPanel tx={tx} onCopy={onCopy} />
+          </td>
+        </tr>
+      )}
     </>
   );
 }
@@ -627,8 +618,7 @@ function TxMobileCard({
   onCopy:   (text: string, key: string) => void;
 }) {
   return (
-    <motion.div
-      layout
+    <div
       style={{
         background:   C.bgCard,
         border:       `1px solid ${expanded ? C.borderStrong : C.border}`,
@@ -716,12 +706,10 @@ function TxMobileCard({
       </div>
 
       {/* Detail panel */}
-      <AnimatePresence>
-        {expanded && (
-          <DetailPanel tx={tx} onCopy={onCopy} />
-        )}
-      </AnimatePresence>
-    </motion.div>
+      {expanded && (
+        <DetailPanel tx={tx} onCopy={onCopy} />
+      )}
+    </div>
   );
 }
 
@@ -873,10 +861,7 @@ function EmptyState({ filter }: { filter: FilterTab }) {
   const { title, desc } = msgs[filter];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+    <div
       style={{
         display:        'flex',
         flexDirection:  'column',
@@ -915,7 +900,7 @@ function EmptyState({ filter }: { filter: FilterTab }) {
       <p style={{ color: C.textMuted, fontSize: 13, maxWidth: 320, lineHeight: 1.65, margin: 0 }}>
         {desc}
       </p>
-    </motion.div>
+    </div>
   );
 }
 
@@ -983,41 +968,35 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
 // ---------------------------------------------------------------------------
 function Toast({ message, visible }: { message: string; visible: boolean }) {
   return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          initial={{ opacity: 0, y: 14, scale: 0.97 }}
-          animate={{ opacity: 1, y: 0,  scale: 1     }}
-          exit={{ opacity: 0, y: 8, scale: 0.97 }}
-          transition={{ duration: 0.18 }}
-          style={{
-            position:     'fixed',
-            bottom:       28,
-            left:         '50%',
-            transform:    'translateX(-50%)',
-            zIndex:       600,
-            background:   C.bgCard,
-            border:       `1px solid ${C.border}`,
-            borderRadius: 8,
-            padding:      '10px 18px',
-            color:        C.textPrimary,
-            fontSize:     13,
-            fontWeight:   500,
-            boxShadow:    '0 8px 24px rgba(0,0,0,0.55)',
-            display:      'flex',
-            alignItems:   'center',
-            gap:          8,
-            whiteSpace:   'nowrap',
-            pointerEvents: 'none',
-          }}
-        >
-          <span style={{ color: C.success, display: 'flex', alignItems: 'center' }}>
-            <IconCheck size={14} />
-          </span>
-          {message}
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div
+      style={{
+        position:     'fixed',
+        bottom:       28,
+        left:         '50%',
+        transform:    'translateX(-50%)',
+        zIndex:       600,
+        background:   C.bgCard,
+        border:       `1px solid ${C.border}`,
+        borderRadius: 8,
+        padding:      '10px 18px',
+        color:        C.textPrimary,
+        fontSize:     13,
+        fontWeight:   500,
+        boxShadow:    '0 8px 24px rgba(0,0,0,0.55)',
+        display:      'flex',
+        alignItems:   'center',
+        gap:          8,
+        whiteSpace:   'nowrap',
+        pointerEvents: 'none',
+        opacity:      visible ? 1 : 0,
+        transition:   'opacity 0.18s ease',
+      }}
+    >
+      <span style={{ color: C.success, display: 'flex', alignItems: 'center' }}>
+        <IconCheck size={14} />
+      </span>
+      {message}
+    </div>
   );
 }
 
@@ -1438,17 +1417,15 @@ export default function TransactionsPage() {
 
                   {/* Mobile card list */}
                   <div className="md:hidden" style={{ padding: '12px' }}>
-                    <AnimatePresence>
-                      {displayedTx.map(tx => (
-                        <TxMobileCard
-                          key={tx.id}
-                          tx={tx}
-                          expanded={expandedId === tx.id}
-                          onToggle={() => handleToggle(tx.id)}
-                          onCopy={handleCopy}
-                        />
-                      ))}
-                    </AnimatePresence>
+                    {displayedTx.map(tx => (
+                      <TxMobileCard
+                        key={tx.id}
+                        tx={tx}
+                        expanded={expandedId === tx.id}
+                        onToggle={() => handleToggle(tx.id)}
+                        onCopy={handleCopy}
+                      />
+                    ))}
                   </div>
                 </>
               )}

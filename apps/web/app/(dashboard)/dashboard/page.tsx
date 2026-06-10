@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp,
   TrendingDown,
@@ -155,20 +154,6 @@ function TxStatusBadge({ status }: { status: Transaction['status'] }) {
 }
 
 // ---------------------------------------------------------------------------
-// Framer variants
-// ---------------------------------------------------------------------------
-
-const containerVariants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.07 } },
-};
-
-const cardVariants = {
-  hidden:  { opacity: 0, y: 20, scale: 0.97 },
-  visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35, ease: [0.2, 0, 0, 1] } },
-};
-
-// ---------------------------------------------------------------------------
 // Main dashboard
 // ---------------------------------------------------------------------------
 
@@ -250,16 +235,11 @@ export default function DashboardPage() {
   const isLoading = loadingRate && loadingProfile;
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="space-y-6 pb-10"
-    >
+    <div className="space-y-6 pb-10">
       {/* ------------------------------------------------------------------ */}
       {/* Header                                                               */}
       {/* ------------------------------------------------------------------ */}
-      <motion.div variants={cardVariants} className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1
             className="text-2xl font-bold tracking-tight"
@@ -279,66 +259,58 @@ export default function DashboardPage() {
           <LiveDot />
           <span>Live</span>
         </div>
-      </motion.div>
+      </div>
 
       {/* ------------------------------------------------------------------ */}
       {/* KYC Banner                                                           */}
       {/* ------------------------------------------------------------------ */}
-      <AnimatePresence>
-        {!loadingProfile && profile && !kycApproved && (
-          <motion.div
-            key="kyc-banner"
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.3 }}
-            className="rounded-xl border p-4 flex items-start gap-3"
-            style={{
-              background: kycSubmitted
-                ? 'rgba(240,185,11,0.08)'
-                : 'rgba(246,70,93,0.08)',
-              borderColor: kycSubmitted ? 'rgba(240,185,11,0.25)' : 'rgba(246,70,93,0.25)',
-            }}
-          >
-            <ShieldAlert
-              size={20}
-              style={{ color: kycSubmitted ? '#F0B90B' : '#F6465D', flexShrink: 0, marginTop: 1 }}
-            />
-            <div className="flex-1 min-w-0">
-              <p
-                className="text-sm font-semibold"
-                style={{ color: kycSubmitted ? '#F0B90B' : '#F6465D' }}
-              >
-                {kycSubmitted ? 'Verification under review' : 'Identity verification required'}
-              </p>
-              <p className="text-xs mt-0.5" style={{ color: '#848E9C' }}>
-                {kycSubmitted
-                  ? 'Your documents are being reviewed. This usually takes 1–2 business days.'
-                  : 'Verify your ID to unlock full transaction limits and all features.'}
-              </p>
-            </div>
-            {!kycSubmitted && (
-              <Link
-                href="/profile"
-                className="flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
-                style={{
-                  background: 'rgba(246,70,93,0.15)',
-                  color: '#F6465D',
-                  border: '1px solid rgba(246,70,93,0.30)',
-                }}
-              >
-                Verify now
-              </Link>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {!loadingProfile && profile && !kycApproved && (
+        <div
+          className="rounded-xl border p-4 flex items-start gap-3"
+          style={{
+            background: kycSubmitted
+              ? 'rgba(240,185,11,0.08)'
+              : 'rgba(246,70,93,0.08)',
+            borderColor: kycSubmitted ? 'rgba(240,185,11,0.25)' : 'rgba(246,70,93,0.25)',
+          }}
+        >
+          <ShieldAlert
+            size={20}
+            style={{ color: kycSubmitted ? '#F0B90B' : '#F6465D', flexShrink: 0, marginTop: 1 }}
+          />
+          <div className="flex-1 min-w-0">
+            <p
+              className="text-sm font-semibold"
+              style={{ color: kycSubmitted ? '#F0B90B' : '#F6465D' }}
+            >
+              {kycSubmitted ? 'Verification under review' : 'Identity verification required'}
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: '#848E9C' }}>
+              {kycSubmitted
+                ? 'Your documents are being reviewed. This usually takes 1–2 business days.'
+                : 'Verify your ID to unlock full transaction limits and all features.'}
+            </p>
+          </div>
+          {!kycSubmitted && (
+            <Link
+              href="/profile"
+              className="flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
+              style={{
+                background: 'rgba(246,70,93,0.15)',
+                color: '#F6465D',
+                border: '1px solid rgba(246,70,93,0.30)',
+              }}
+            >
+              Verify now
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* ------------------------------------------------------------------ */}
       {/* Portfolio summary card (full width)                                 */}
       {/* ------------------------------------------------------------------ */}
-      <motion.div
-        variants={cardVariants}
+      <div
         className="rounded-2xl p-6 relative overflow-hidden"
         style={{
           background: 'linear-gradient(135deg, #1C1F26 0%, #181B22 100%)',
@@ -423,15 +395,14 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* ------------------------------------------------------------------ */}
       {/* Rate cards row: BTC Price | Buy Rate | Sell Rate                    */}
       {/* ------------------------------------------------------------------ */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* BTC Price card */}
-        <motion.div
-          variants={cardVariants}
+        <div
           className="rounded-2xl p-5 relative overflow-hidden"
           style={{
             background: 'linear-gradient(135deg, #1C1F26 0%, #181B22 100%)',
@@ -497,11 +468,10 @@ export default function DashboardPage() {
               </>
             )}
           </div>
-        </motion.div>
+        </div>
 
         {/* Buy Rate card */}
-        <motion.div
-          variants={cardVariants}
+        <div
           className="rounded-2xl p-5"
           style={{
             background: 'linear-gradient(135deg, #1C1F26 0%, #181B22 100%)',
@@ -535,11 +505,10 @@ export default function DashboardPage() {
               <p className="text-xs mt-1" style={{ color: '#848E9C' }}>Per Bitcoin · incl. spread</p>
             </>
           )}
-        </motion.div>
+        </div>
 
         {/* Sell Rate card */}
-        <motion.div
-          variants={cardVariants}
+        <div
           className="rounded-2xl p-5"
           style={{
             background: 'linear-gradient(135deg, #1C1F26 0%, #181B22 100%)',
@@ -573,7 +542,7 @@ export default function DashboardPage() {
               <p className="text-xs mt-1" style={{ color: '#848E9C' }}>Per Bitcoin · incl. spread</p>
             </>
           )}
-        </motion.div>
+        </div>
       </div>
 
       {/* ------------------------------------------------------------------ */}
@@ -581,8 +550,7 @@ export default function DashboardPage() {
       {/* ------------------------------------------------------------------ */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Bitcoin balance */}
-        <motion.div
-          variants={cardVariants}
+        <div
           className="rounded-2xl p-6"
           style={{
             background: 'linear-gradient(135deg, #1C1F26 0%, #181B22 100%)',
@@ -633,11 +601,10 @@ export default function DashboardPage() {
               )}
             </>
           )}
-        </motion.div>
+        </div>
 
         {/* Quick Actions */}
-        <motion.div
-          variants={cardVariants}
+        <div
           className="rounded-2xl p-6 flex flex-col"
           style={{
             background: 'linear-gradient(135deg, #1C1F26 0%, #181B22 100%)',
@@ -702,14 +669,13 @@ export default function DashboardPage() {
               Rate refreshed {rate.updatedAt ? timeAgo(rate.updatedAt) : 'recently'}
             </div>
           )}
-        </motion.div>
+        </div>
       </div>
 
       {/* ------------------------------------------------------------------ */}
       {/* Recent Transactions                                                  */}
       {/* ------------------------------------------------------------------ */}
-      <motion.div
-        variants={cardVariants}
+      <div
         className="rounded-2xl"
         style={{
           background: 'linear-gradient(135deg, #1C1F26 0%, #181B22 100%)',
@@ -794,11 +760,8 @@ export default function DashboardPage() {
               const label = isBuy ? 'Bought BTC' : isSell ? 'Sold BTC' : tx.type.replace('_', ' ');
 
               return (
-                <motion.div
+                <div
                   key={tx.id}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.05, duration: 0.25 }}
                   className="flex items-center gap-4 px-6 py-4 transition-colors"
                   style={{ cursor: 'default' }}
                 >
@@ -854,23 +817,22 @@ export default function DashboardPage() {
                       <TxStatusBadge status={tx.status} />
                     </div>
                   </div>
-                </motion.div>
+                </div>
               );
             })
           )}
         </div>
-      </motion.div>
+      </div>
 
       {/* ------------------------------------------------------------------ */}
       {/* Footer note                                                          */}
       {/* ------------------------------------------------------------------ */}
-      <motion.p
-        variants={cardVariants}
+      <p
         className="text-center text-xs"
         style={{ color: '#5A6275' }}
       >
         Rates shown are indicative and subject to change. Final rates confirmed at order execution.
-      </motion.p>
-    </motion.div>
+      </p>
+    </div>
   );
 }
