@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { PrismaService } from '../prisma/prisma.service';
@@ -8,11 +8,12 @@ import { ethers } from 'ethers';
 const WEI_PER_ETH = BigInt('1000000000000000000');
 
 @Injectable()
-export class EthereumService {
+export class EthereumService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(EthereumService.name);
   private hdNode: ethers.HDNodeWallet | null = null;
   private provider: ethers.JsonRpcProvider | null = null;
   private addressIndex = 0;
+  private depositInterval: NodeJS.Timeout | null = null;
 
   constructor(
     private config: ConfigService,
@@ -20,6 +21,17 @@ export class EthereumService {
     private prisma: PrismaService,
   ) {
     this.init();
+  }
+
+  onApplicationBootstrap() {
+    if (this.provider) {
+      this.depositInterval = setInterval(() => this.checkDeposits(), 60_000);
+      this.logger.log('Ethereum deposit monitor started');
+    }
+  }
+
+  onApplicationShutdown() {
+    if (this.depositInterval) clearInterval(this.depositInterval);
   }
 
   private init() {

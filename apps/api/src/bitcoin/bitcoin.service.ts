@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { PrismaService } from '../prisma/prisma.service';
@@ -6,14 +6,27 @@ import { firstValueFrom } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
-export class BitcoinService {
+export class BitcoinService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(BitcoinService.name);
+  private depositInterval: NodeJS.Timeout | null = null;
+  private sellDepositInterval: NodeJS.Timeout | null = null;
 
   constructor(
     private config: ConfigService,
     private http: HttpService,
     private prisma: PrismaService,
   ) {}
+
+  onApplicationBootstrap() {
+    this.depositInterval = setInterval(() => this.checkDeposits(), 60_000);
+    this.sellDepositInterval = setInterval(() => this.checkSellDeposits(), 30_000);
+    this.logger.log('Bitcoin deposit monitors started');
+  }
+
+  onApplicationShutdown() {
+    if (this.depositInterval) clearInterval(this.depositInterval);
+    if (this.sellDepositInterval) clearInterval(this.sellDepositInterval);
+  }
 
   private get rpcUrl() {
     return this.config.get('bitcoin.rpcUrl') || 'http://localhost:8332';
