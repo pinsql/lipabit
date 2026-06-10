@@ -197,14 +197,7 @@ CREATE TABLE IF NOT EXISTS "transactions" (
   "updatedAt"      TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT "transactions_pkey" PRIMARY KEY ("id")
 );
-CREATE UNIQUE INDEX IF NOT EXISTS "transactions_reference_key" ON "transactions"("reference");
-CREATE INDEX IF NOT EXISTS "transactions_userId_createdAt_idx" ON "transactions"("userId", "createdAt");
-CREATE INDEX IF NOT EXISTS "transactions_userId_status_idx" ON "transactions"("userId", "status");
-CREATE INDEX IF NOT EXISTS "transactions_status_createdAt_idx" ON "transactions"("status", "createdAt");
-CREATE INDEX IF NOT EXISTS "transactions_reference_idx" ON "transactions"("reference");
-CREATE INDEX IF NOT EXISTS "transactions_depositAddress_idx" ON "transactions"("depositAddress");
-
--- Handle existing tables — add new columns if they don't exist
+-- Handle existing tables — add new columns if they don't exist (must precede indexes)
 ALTER TABLE "transactions"
   ADD COLUMN IF NOT EXISTS "coin" TEXT NOT NULL DEFAULT 'BTC',
   ADD COLUMN IF NOT EXISTS "amountWei" BIGINT,
@@ -214,6 +207,13 @@ ALTER TABLE "transactions"
   ADD COLUMN IF NOT EXISTS "guestPhone" TEXT,
   ADD COLUMN IF NOT EXISTS "guestEmail" TEXT,
   ADD COLUMN IF NOT EXISTS "cryptoTxid" TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS "transactions_reference_key" ON "transactions"("reference");
+CREATE INDEX IF NOT EXISTS "transactions_userId_createdAt_idx" ON "transactions"("userId", "createdAt");
+CREATE INDEX IF NOT EXISTS "transactions_userId_status_idx" ON "transactions"("userId", "status");
+CREATE INDEX IF NOT EXISTS "transactions_status_createdAt_idx" ON "transactions"("status", "createdAt");
+CREATE INDEX IF NOT EXISTS "transactions_reference_idx" ON "transactions"("reference");
+CREATE INDEX IF NOT EXISTS "transactions_depositAddress_idx" ON "transactions"("depositAddress");
 
 -- Backfill cryptoPriceKes from old btcPriceKes if it exists
 DO $$
