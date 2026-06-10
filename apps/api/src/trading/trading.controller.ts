@@ -13,6 +13,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { IsNumber, IsString, Min, Max, Matches } from 'class-validator';
 import { Type } from 'class-transformer';
+// Note: Min/Max/Type are used in DTO class properties only, not on controller params
 import { ApiProperty } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 
@@ -85,10 +86,12 @@ export class TradingController {
   @ApiOperation({ summary: 'Get transaction history' })
   getHistory(
     @CurrentUser('id') userId: string,
-    @Query('page') @Type(() => Number) @Min(1) page: number = 1,
-    @Query('limit') @Type(() => Number) @Min(1) @Max(100) limit: number = 20,
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
   ) {
-    return this.tradingService.getTransactionHistory(userId, Number(page), Math.min(Number(limit), 100));
+    const p = Math.max(1, parseInt(page) || 1);
+    const l = Math.min(100, Math.max(1, parseInt(limit) || 20));
+    return this.tradingService.getTransactionHistory(userId, p, l);
   }
 
   @Get('transactions/:id')
