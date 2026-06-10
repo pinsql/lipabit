@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -143,7 +143,7 @@ function IconBitcoin() {
 interface NavItem {
   href:  string;
   label: string;
-  Icon:  () => JSX.Element;
+  Icon:  () => React.JSX.Element;
 }
 
 const NAV_ITEMS: NavItem[] = [
