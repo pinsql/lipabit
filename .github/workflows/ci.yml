@@ -70,10 +70,10 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 30m
           script: |
             cd /opt/lipabit
             git pull origin main
-            docker compose pull
             docker compose build --no-cache api web
             docker compose up -d --force-recreate api web
             docker compose exec -T api npx prisma migrate deploy
